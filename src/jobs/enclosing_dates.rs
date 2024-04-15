@@ -1,9 +1,11 @@
+use std::collections::HashSet;
+
+use chrono::NaiveDate;
+use regex::Regex;
+
 use crate::jobs::solde::get_texts_of_page;
 use crate::jobs::xml_model::{Page, Pdf2xml, Text};
 use crate::util::error::MyError;
-use chrono::{NaiveDate, NaiveDateTime};
-use regex::Regex;
-use std::collections::HashSet;
 
 pub fn intmonth_of_strmonth(month: &str) -> Result<u8, MyError> {
     match month {

@@ -1,123 +1,83 @@
 use crate::jobs::enclosing_dates::enclosing_dates_of_page;
-use crate::jobs::model::{Poste, Row, Table, TotalDesOperations};
+use crate::jobs::model::{Row, Table, TotalDesOperations};
 use crate::jobs::total_des_operations::total_des_operations_of_page;
-use crate::jobs::xml_model::{Item, Page, Pdf2xml, Text};
+use crate::jobs::xml_model::{Item, Page, Text};
 use crate::util::error::MyError;
 use chrono::{Datelike, NaiveDate};
 use regex::Regex;
 
-fn guess_postes(nature: String) -> Vec<Poste> {
-    let mut postes: Vec<Poste> = vec![];
+fn guess_poste(nature: String) -> String {
     if nature.contains("/MOTIF SALAIRE") {
-        postes.push(Poste {
-            nom: "salaire".to_string(),
-        });
-    };
+        return "salaire".to_string();
+    }
     if nature.starts_with("VIR SEPA RECU /DE CPAM") {
-        postes.push(Poste {
-            nom: "secu".to_string(),
-        });
+        return "secu".to_string();
     };
     if nature.starts_with("PRLV SEPA DGFIP IMPOT") {
-        postes.push(Poste {
-            nom: "taxes".to_string(),
-        });
+        return "taxes".to_string();
     };
 
     if nature.contains("DU 041223 ATRIUM GARENNATRIUM/") {
-        postes.push(Poste {
-            nom: "alimentation".to_string(),
-        });
+        return "alimentation".to_string();
     };
 
     if nature.starts_with("PRLV SEPA HENNER GMC-HENNER-GMC") {
-        postes.push(Poste {
-            nom: "mutuelle".to_string(),
-        });
+        return "mutuelle".to_string();
     };
 
     if nature.contains("EMIS /MOTIF") && nature.contains("IMMO") {
-        postes.push(Poste {
-            nom: "emprunt_immo".to_string(),
-        });
+        return "emprunt_immo".to_string();
     };
 
-
     if nature.starts_with("PRLV SEPA NAVIGO ANNUEL") {
-        postes.push(Poste {
-            nom: "navigo".to_string(),
-        });
+        return "navigo".to_string();
     };
 
     if nature.starts_with("PRLV SEPA CARDIF ASSURANCE VIE") {
-        postes.push(Poste {
-            nom: "assurance_vie".to_string(),
-        });
+        return "assurance_vie".to_string();
     };
 
     if nature.starts_with("PRLV SEPA MAIF") {
-        postes.push(Poste {
-            nom: "maif".to_string(),
-        });
+        return "maif".to_string();
     };
 
-    if nature.starts_with("VIREMENT SEPA EMIS") && nature.contains ("TAMARA"){
-        postes.push(Poste {
-            nom: "virement_tam".to_string(),
-        });
+    if nature.starts_with("VIREMENT SEPA EMIS") && nature.contains("TAMARA") {
+        return "virement_tam".to_string();
     };
 
-    if nature.starts_with("RETRAIT DAB"){
-        postes.push(Poste {
-            nom: "retrait_dab".to_string(),
-        });
+    if nature.starts_with("RETRAIT DAB") {
+        return "retrait_dab".to_string();
     };
-
 
     if nature.contains("GATFIC") {
-        postes.push(Poste {
-            nom: "gatfic".to_string(),
-        });
+        return "gatfic".to_string();
     };
 
     if nature.contains("LEROY MERLIN") {
-        postes.push(Poste {
-            nom: "maison".to_string(),
-        });
+        return "maison".to_string();
     };
 
     if nature.contains("LOYER PARKING") {
-        postes.push(Poste {
-            nom: "box".to_string(),
-        });
+        return "box".to_string();
     };
 
     if nature.contains("EDF") {
-        postes.push(Poste {
-            nom: "edf".to_string(),
-        });
+        return "edf".to_string();
     };
 
     if nature.contains("ORANGE") {
-        postes.push(Poste {
-            nom: "orange".to_string(),
-        });
+        return "orange".to_string();
     };
 
     if nature.contains("dedibox") {
-        postes.push(Poste {
-            nom: "orange".to_string(),
-        });
+        return "orange".to_string();
     };
 
     if nature.starts_with("PRLV SEPA CONSERVATOIRE MUSIQUE") {
-        postes.push(Poste {
-            nom: "conservatoire".to_string(),
-        });
+        return "conservatoire".to_string();
     };
 
-
-    postes
+    "?".to_string()
 }
 // pub fn last_page_index(xml: &Pdf2xml) -> Result<usize, MyError> {
 //     for i in (0..xml.pages.len() - 1).rev() {
@@ -190,7 +150,7 @@ pub fn split_to_cells(
     return Ok(result);
 }
 
-pub fn parse_page(page: &Page) -> Result<Table, MyError> {
+pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
     let ec = enclosing_dates_of_page(page)?;
     let texts: Vec<&Text> = match &page.items {
         None => vec![],
@@ -207,7 +167,12 @@ pub fn parse_page(page: &Page) -> Result<Table, MyError> {
     let date_header: Vec<&&Text> = texts.iter().filter(|t| t.value == "Date").collect();
     // println!("found {} date", date_header.len());
     if date_header.len() != 1 {
-        return Ok(Table { rows: vec![] });
+        return Ok(Table {
+            rows: vec![],
+            releve: releve,
+            total_des_operations_credit: 0,
+            total_des_operations_debit: 0,
+        });
         // return Err(format!("more or zero field Date : {}, page #{}",date_header.len(),page.number).to_string());
     }
     let date_header = date_header.get(0).ok_or("no 0 ???".to_string())?;
@@ -298,7 +263,7 @@ pub fn parse_page(page: &Page) -> Result<Table, MyError> {
     ];
 
     let stringtable = split_to_cells(texts, rows, cols)?;
-    let rows: Result<Vec<Row>,MyError> = stringtable
+    let rows: Result<Vec<Row>, MyError> = stringtable
         .iter()
         .map(|row| {
             let date = row.get(0).expect("date").to_string();
@@ -329,16 +294,25 @@ pub fn parse_page(page: &Page) -> Result<Table, MyError> {
                     0
                 }
             };
-            let date= naive_date_of_string(date.as_str(), ec)?;
+            let date = naive_date_of_string(date.as_str(), ec)?;
             Ok(Row {
-                date:date,
+                date: date,
                 nature: nature.clone(),
                 value: value,
-                postes: guess_postes(nature),
+                poste: guess_poste(nature),
             })
         })
         .collect();
-    let rows = rows? ;
-    let table = Table { rows: rows };
+    let rows = rows?;
+    let (total_credit, total_debit) = match total_des_operations_of_page(&page) {
+        Some(t) => (t.credit, t.debit),
+        None => (0, 0),
+    };
+    let table = Table {
+        releve: releve,
+        total_des_operations_credit: total_credit,
+        total_des_operations_debit: total_debit,
+        rows: rows,
+    };
     Ok(table)
 }

@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use std::fs;
 
 use rocket::form::validate::Contains;
@@ -5,7 +6,7 @@ use serde_xml_rs::from_str;
 use uuid::Uuid;
 
 // use polars::prelude::*;
-use crate::jobs::iomodel::save;
+use crate::jobs::iomodel::{releve_of_path, save};
 use crate::jobs::model::{Row, Table};
 use crate::jobs::parse_page::parse_page;
 use crate::jobs::process::{run, ProcessInput};
@@ -66,7 +67,7 @@ fn check_soldes(table: &Table, t: &Pdf2xml) -> Result<(), MyError> {
     Ok(())
 }
 
-fn work_xml(data: String) -> Result<Table, MyError> {
+fn work_xml(data: String, releve: NaiveDate) -> Result<Table, MyError> {
     // if in_path.contains(".xml") == false {
     //     return Err(MyError::VarError(in_path));
     // }
@@ -76,7 +77,7 @@ fn work_xml(data: String) -> Result<Table, MyError> {
     let tables: Vec<Table> = t
         .pages
         .iter()
-        .filter_map(|p| match parse_page(p) {
+        .filter_map(|p| match parse_page(p, releve) {
             Ok(table) => Some(table),
             Err(_) => None,
         })
@@ -86,7 +87,12 @@ fn work_xml(data: String) -> Result<Table, MyError> {
     for mut table in tables {
         rows.append(&mut table.rows);
     }
-    let table = Table { rows: rows };
+    let table = Table {
+        releve: releve,
+        total_des_operations_credit: total.credit,
+        total_des_operations_debit: total.debit,
+        rows: rows,
+    };
     let _ = check_soldes(&table, &t)?;
 
     // let df: PolarsResult<DataFrame> = DataFrame::new(data);
@@ -100,7 +106,8 @@ pub fn scan(in_path: String) -> Result<Table, MyError> {
         return Err(MyError::VarError(in_path));
     }
     let xml_string = pdftoxml(in_path.clone())?;
-    let table = work_xml(xml_string)?;
+    let releve = releve_of_path(in_path)?;
+    let table = work_xml(xml_string, releve)?;
     Ok(table)
 }
 

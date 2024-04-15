@@ -8,10 +8,12 @@ use jobs::check::check;
 use jobs::scan::scan;
 
 use crate::jobs::scan::initjson;
+use crate::migrate::migrate::migrate;
 
 // use crate::sched::cli::{blah_handle_cli, BlahArgs};
 
 mod jobs;
+mod migrate;
 mod util;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -31,6 +33,7 @@ enum Commands {
     Check(StringArg),
     Xxx(StringArg),
     ToCsv(StringArg),
+    Migrate(StringArg),
 }
 #[derive(Parser)]
 pub struct IntArg {
@@ -90,6 +93,14 @@ fn main() -> ExitCode {
             document.save("modified.pdf").unwrap();
             1
         }
+
+        Commands::Migrate(s) => match migrate(s.arg) {
+            Ok(()) => 0,
+            Err(msg) => {
+                println!("{}", msg);
+                1
+            }
+        },
     };
 
     ExitCode::from(exit_code)

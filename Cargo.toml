@@ -1,6 +1,6 @@
 [package]
 name = "bnp"
-version='2024.3.11'
+version='2024.4.15'
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

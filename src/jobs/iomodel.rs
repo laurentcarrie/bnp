@@ -1,51 +1,42 @@
 use crate::jobs::model;
 use crate::util::error::MyError;
+use chrono::NaiveDate;
+use polars::prelude::TemporalMethods;
+use regex::Regex;
 use rocket::serde::{Deserialize, Serialize};
 use std::fs;
-use chrono::NaiveDate;
-use crate::jobs::parse_page::naive_date_of_string;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Poste {
-    pub nom: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Row {
     pub date: NaiveDate,
     pub nature: String,
     pub value: i32,
-    pub postes: Vec<String>,
+    pub poste: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Table {
+    pub releve: NaiveDate,
     pub rows: Vec<Row>,
+    pub total_des_operations_debit: i32,
+    pub total_des_operations_credit: i32,
 }
 
 fn iorow_of_row(row: &model::Row) -> Row {
-    let postes = row.postes.iter().map(|p| p.nom.clone()).collect();
-
     Row {
         date: row.date.clone(),
         nature: row.nature.clone(),
         value: row.value,
-        postes: postes,
+        poste: row.poste.clone(),
     }
 }
 
 fn row_of_iorow(iorow: &Row) -> model::Row {
-    let postes = iorow
-        .postes
-        .iter()
-        .map(|r| model::Poste { nom: r.clone() })
-        .collect();
-
     model::Row {
         date: iorow.date.clone(),
         nature: iorow.nature.clone(),
         value: iorow.value,
-        postes: postes,
+        poste: iorow.poste.clone(),
     }
 }
 
@@ -55,22 +46,43 @@ pub fn save(table: model::Table, path: String) -> Result<(), MyError> {
         .into_iter()
         .map(|row| iorow_of_row(&row))
         .collect();
-    let table = Table { rows: rows };
+    let table = Table {
+        rows: rows,
+        total_des_operations_debit: table.total_des_operations_debit,
+        releve: table.releve,
+        total_des_operations_credit: table.total_des_operations_credit,
+    };
     let json = serde_json::to_string(&table)?;
     let _ = fs::write(path, json)?;
     Ok(())
 }
 
+pub fn releve_of_path(path: String) -> Result<NaiveDate, MyError> {
+    let re = Regex::new(r"RLV_CHQ_(.*?)_(\d\d\d\d\d\d\d\d).pdf").unwrap();
+    let caps = re
+        .captures(&path)
+        .ok_or(MyError::Message("xxx".to_string()))?;
+    let compte = caps.get(1).unwrap();
+    let string_naivedateyear = caps.get(2).unwrap();
+    let nd = NaiveDate::parse_from_str(string_naivedateyear.as_str(), "%Y%m%d")?;
+    Ok(nd)
+}
+
 pub fn load(path: String) -> Result<model::Table, MyError> {
     let data_json = std::fs::read_to_string(path.as_str())?;
-    let iotable = serde_json::from_str::<Table>(data_json.as_str())?;
+    let data = serde_json::from_str::<Table>(data_json.as_str())?;
 
-    let rows: Vec<model::Row> = iotable
+    let rows: Vec<model::Row> = data
         .rows
         .into_iter()
         .map(|row| row_of_iorow(&row))
         .collect();
-    // # try_collect ???
-    let table = model::Table { rows: rows };
+
+    let table = model::Table {
+        releve: data.releve,
+        total_des_operations_credit: data.total_des_operations_credit,
+        total_des_operations_debit: data.total_des_operations_debit,
+        rows: rows,
+    };
     Ok(table)
 }
