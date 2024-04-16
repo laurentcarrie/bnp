@@ -28,6 +28,12 @@ pub fn pdftoxml(in_path: String) -> Result<String, MyError> {
         }
         None => "pdftohtml".to_string(),
     };
+    let path: String = match std::env::consts::OS {
+        "windows" => {
+            format!("{}.exe", path)
+        }
+        _ => path,
+    };
     dbg!(&path);
     if !easy_paths::is_file(&path) {
         return Err(MyError::Message(format!("no such file : {}", &path)));
