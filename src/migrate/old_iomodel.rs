@@ -8,7 +8,7 @@ pub struct Row {
     pub date: NaiveDate,
     pub nature: String,
     pub value: i32,
-    pub postes: Vec<String>,
+    pub poste: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

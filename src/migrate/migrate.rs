@@ -1,7 +1,6 @@
 use crate::jobs::iomodel::{releve_of_path, save};
 use crate::jobs::scan::scan;
 use crate::util::error::MyError;
-use polars::prelude::TemporalMethods;
 
 fn migrate_one_file(path: &String) -> Result<(), MyError> {
     // dbg!(&path);
@@ -16,11 +15,17 @@ fn migrate_one_file(path: &String) -> Result<(), MyError> {
             |r| crate::jobs::model::Row {
                 date: r.date.clone(),
                 nature: r.nature.clone(),
-                value: r.value,
-                poste: r.postes.join(""),
+                value: if r.value < 0 {
+                    crate::jobs::model::Value::Debit(-r.value)
+                } else {
+                    crate::jobs::model::Value::Credit(r.value)
+                },
+                poste: r.poste.clone(),
+                commentaire: "".to_string(),
             }
         })
         .collect();
+    dbg!(&rows);
     let pdf_path = path.replace(".json", ".pdf");
     let new_table = scan(pdf_path.to_string())?;
     let new_table = crate::jobs::model::Table {
@@ -29,8 +34,8 @@ fn migrate_one_file(path: &String) -> Result<(), MyError> {
         total_des_operations_debit: new_table.total_des_operations_debit,
         rows: rows.clone(),
     };
-    //let path = path.replace(".json","-xxx.json") ;
-    save(new_table, (&path).to_string())?;
+    // let path = path.replace(".json", "-xxx.json").clone();
+    let _x = save(new_table, path.clone());
 
     Ok(())
 }

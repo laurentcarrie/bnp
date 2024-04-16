@@ -1,10 +1,11 @@
+use chrono::{Datelike, NaiveDate};
+use regex::Regex;
+
 use crate::jobs::enclosing_dates::enclosing_dates_of_page;
-use crate::jobs::model::{Row, Table, TotalDesOperations};
+use crate::jobs::model::{Row, Table, Value};
 use crate::jobs::total_des_operations::total_des_operations_of_page;
 use crate::jobs::xml_model::{Item, Page, Text};
 use crate::util::error::MyError;
-use chrono::{Datelike, NaiveDate};
-use regex::Regex;
 
 fn guess_poste(nature: String) -> String {
     if nature.contains("/MOTIF SALAIRE") {
@@ -283,15 +284,13 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
                 .replace(",", "")
                 .parse::<i32>();
             let value = match (credit, debit) {
-                (Ok(v), Err(_)) => v,
-                (Err(_), Ok(v)) => -v,
+                (Ok(v), Err(_)) => Value::Credit(v),
+                (Err(_), Ok(v)) => Value::Debit(v),
                 (Ok(_), Ok(_)) => {
-                    // return Err("both debit and credit".to_string());
-                    0
+                    return Err(MyError::Message("both debit and credit".to_string()));
                 }
                 (Err(_), Err(_)) => {
-                    // return Err("neither debit nor credit".to_string());
-                    0
+                    return Err(MyError::Message("neither debit nor credit".to_string()));
                 }
             };
             let date = naive_date_of_string(date.as_str(), ec)?;
@@ -300,6 +299,7 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
                 nature: nature.clone(),
                 value: value,
                 poste: guess_poste(nature),
+                commentaire: "".to_string(),
             })
         })
         .collect();

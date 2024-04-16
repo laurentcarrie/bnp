@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 // use polars::prelude::*;
 use crate::jobs::iomodel::{releve_of_path, save};
-use crate::jobs::model::{Row, Table};
+use crate::jobs::model::{signed_value_of_value, Row, Table, Value};
 use crate::jobs::parse_page::parse_page;
 use crate::jobs::process::{run, ProcessInput};
 use crate::jobs::solde::{get_xml_solde_after, get_xml_solde_before};
@@ -31,7 +31,10 @@ fn check_soldes(table: &Table, t: &Pdf2xml) -> Result<(), MyError> {
     let sb = get_xml_solde_before(&t)?;
     let sa = get_xml_solde_after(&t)?;
     let diff = sa.montant - sb.montant;
-    let cumul = table.rows.iter().fold(0, |acc, row| acc + row.value);
+    let cumul = table
+        .rows
+        .iter()
+        .fold(0, |acc, row| acc + signed_value_of_value(row.value.clone()));
     if diff != cumul {
         return Err(MyError::Message(format!(
             "in xml(pdf), solde after-solde before = {}, in json cumul = {}",
@@ -44,12 +47,9 @@ fn check_soldes(table: &Table, t: &Pdf2xml) -> Result<(), MyError> {
         table
             .rows
             .iter()
-            .fold((0, 0), |(acc_credit, acc_debit), row| {
-                if row.value > 0 {
-                    (acc_credit + row.value, acc_debit)
-                } else {
-                    (acc_credit, acc_debit + row.value)
-                }
+            .fold((0, 0), |(acc_credit, acc_debit), row| match row.value {
+                Value::Credit(v) => (acc_credit + v, acc_debit),
+                Value::Debit(v) => (acc_credit, acc_debit + v),
             });
 
     if cumul_credit != total_des_operations.credit {
@@ -58,7 +58,7 @@ fn check_soldes(table: &Table, t: &Pdf2xml) -> Result<(), MyError> {
             cumul_credit, total_des_operations.credit
         )));
     }
-    if cumul_debit != -total_des_operations.debit {
+    if cumul_debit != total_des_operations.debit {
         return Err(MyError::Message(format!(
             "different cumul debit : {} ; {}",
             cumul_debit, total_des_operations.debit

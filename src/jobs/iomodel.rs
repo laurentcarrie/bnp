@@ -1,17 +1,23 @@
 use crate::jobs::model;
 use crate::util::error::MyError;
 use chrono::NaiveDate;
-use polars::prelude::TemporalMethods;
 use regex::Regex;
 use rocket::serde::{Deserialize, Serialize};
 use std::fs;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum Value {
+    Debit(i32),
+    Credit(i32),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Row {
     pub date: NaiveDate,
     pub nature: String,
-    pub value: i32,
+    pub value: Value,
     pub poste: String,
+    pub commentaire: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -26,8 +32,12 @@ fn iorow_of_row(row: &model::Row) -> Row {
     Row {
         date: row.date.clone(),
         nature: row.nature.clone(),
-        value: row.value,
+        value: match row.value {
+            model::Value::Credit(c) => Value::Credit(c),
+            model::Value::Debit(c) => Value::Debit(c),
+        },
         poste: row.poste.clone(),
+        commentaire: row.commentaire.clone(),
     }
 }
 
@@ -35,8 +45,12 @@ fn row_of_iorow(iorow: &Row) -> model::Row {
     model::Row {
         date: iorow.date.clone(),
         nature: iorow.nature.clone(),
-        value: iorow.value,
+        value: match iorow.value {
+            Value::Credit(c) => model::Value::Credit(c),
+            Value::Debit(c) => model::Value::Debit(c),
+        },
         poste: iorow.poste.clone(),
+        commentaire: iorow.commentaire.clone(),
     }
 }
 
@@ -62,7 +76,7 @@ pub fn releve_of_path(path: String) -> Result<NaiveDate, MyError> {
     let caps = re
         .captures(&path)
         .ok_or(MyError::Message("xxx".to_string()))?;
-    let compte = caps.get(1).unwrap();
+    let _compte = caps.get(1).unwrap();
     let string_naivedateyear = caps.get(2).unwrap();
     let nd = NaiveDate::parse_from_str(string_naivedateyear.as_str(), "%Y%m%d")?;
     Ok(nd)
