@@ -1,5 +1,6 @@
 pub mod check;
 pub mod cli;
+mod config;
 pub mod csv;
 pub mod enclosing_dates;
 pub mod iomodel;

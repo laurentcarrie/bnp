@@ -2,6 +2,11 @@ use chrono::NaiveDate;
 use rocket::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct Config {
+    pub pdftohtml_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct TotalDesOperations {
     pub debit: i32,
     pub credit: i32,

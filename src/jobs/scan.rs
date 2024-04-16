@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use std::fs;
 
+use crate::jobs::config::get_config;
 use rocket::form::validate::Contains;
 use serde_xml_rs::from_str;
 use uuid::Uuid;
@@ -18,8 +19,21 @@ use crate::util::error::MyError;
 pub fn pdftoxml(in_path: String) -> Result<String, MyError> {
     let uuid = Uuid::new_v4();
     let out_path = format!("pdf2xml-{}.xml", uuid);
+
+    let config = get_config()?;
+    dbg!(&config);
+    let path = match config.pdftohtml_path {
+        Some(p) => {
+            format!("{}/pdftohtml", p)
+        }
+        None => "pdftohtml".to_string(),
+    };
+    dbg!(&path);
+    if !easy_paths::is_file(&path) {
+        return Err(MyError::Message(format!("no such file : {}", &path)));
+    }
     let pi = ProcessInput {
-        command: "pdftohtml".to_string(),
+        command: path,
         args: vec!["-xml".to_string(), in_path, out_path.clone()],
     };
     let _po = run(pi)?;
