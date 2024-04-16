@@ -11,7 +11,9 @@ pub fn get_config() -> Result<Config, MyError> {
         // Err(MyError::Message("not found".to_string()))
         Ok(config)
     } else {
-        Err(MyError::Message("not found".to_string()))
-        // Ok(Config { pdftohml: None })
+        // Err(MyError::Message("not found".to_string()))
+        Ok(Config {
+            pdftohtml_path: None,
+        })
     }
 }
