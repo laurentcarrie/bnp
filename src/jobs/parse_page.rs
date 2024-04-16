@@ -166,6 +166,7 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
             .collect(),
     };
     let date_header: Vec<&&Text> = texts.iter().filter(|t| t.value == "Date").collect();
+    dbg!(&date_header);
     // println!("found {} date", date_header.len());
     if date_header.len() != 1 {
         return Ok(Table {

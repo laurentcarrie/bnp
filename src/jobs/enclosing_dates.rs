@@ -27,7 +27,11 @@ pub fn intmonth_of_strmonth(month: &str) -> Result<u8, MyError> {
 
 pub fn enclosing_dates_of_page(page: &Page) -> Result<(NaiveDate, NaiveDate), MyError> {
     let texts = get_texts_of_page(&page);
-    let texts: Vec<_> = texts.iter().filter(|t| t.top < 100).collect::<Vec<_>>();
+    let texts: Vec<_> = texts
+        .iter()
+        .filter(|t| t.value.starts_with("du"))
+        .collect::<Vec<_>>();
+    dbg!(&texts);
     let du_hash: HashSet<i32> = texts
         .iter()
         .filter_map(|row| match row.value.as_str() {
