@@ -372,7 +372,7 @@ dependencies = [
 
 [[package]]
 name = "bnp"
-version = "2024.4.16"
+version = "2024.4.17"
 dependencies = [
  "anyhow",
  "approx",

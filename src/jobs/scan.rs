@@ -48,9 +48,15 @@ pub fn pdftoxml(in_path: String) -> Result<String, MyError> {
 }
 
 fn check_soldes(table: &Table, t: &Pdf2xml) -> Result<(), MyError> {
-    let sb = get_xml_solde_before(&t)?;
-    let sa = get_xml_solde_after(&t)?;
-    let diff = sa.montant - sb.montant;
+    let sb = match get_xml_solde_before(&t)?.montant {
+        Value::Credit(u) => u as i32,
+        Value::Debit(u) => -(u as i32),
+    };
+    let sa = match get_xml_solde_after(&t)?.montant {
+        Value::Credit(u) => u as i32,
+        Value::Debit(u) => -(u as i32),
+    };
+    let diff = sa - sb;
     let cumul = table
         .rows
         .iter()
@@ -94,15 +100,13 @@ fn work_xml(data: String, releve: NaiveDate) -> Result<Table, MyError> {
     // let data = fs::read_to_string(in_path.as_str())?;
     let t: Pdf2xml = from_str(&data)?;
     let total = total_des_operations_of_xml(&t)?;
-    let tables: Vec<Table> = t
+    let tables: Result<Vec<Table>, MyError> = t
         .pages
         .iter()
-        .filter_map(|p| match parse_page(p, releve) {
-            Ok(table) => Some(table),
-            Err(_) => None,
-        })
+        .filter(|p| p.number <= total.page_number)
+        .map(|p| parse_page(p, releve))
         .collect();
-    // let tables = tables?;
+    let tables = tables?;
     let mut rows: Vec<Row> = vec![];
     for mut table in tables {
         rows.append(&mut table.rows);
@@ -113,7 +117,7 @@ fn work_xml(data: String, releve: NaiveDate) -> Result<Table, MyError> {
         total_des_operations_debit: total.debit,
         rows: rows,
     };
-    let _ = check_soldes(&table, &t)?;
+    // let _ = check_soldes(&table, &t)?;
 
     // let df: PolarsResult<DataFrame> = DataFrame::new(data);
     // let _ = fs::write(out_csv,data) ;

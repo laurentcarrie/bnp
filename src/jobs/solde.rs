@@ -1,10 +1,15 @@
+use crate::jobs::model::Value;
 use crate::jobs::xml_model::Item::Text_;
 use crate::jobs::xml_model::{Page, Pdf2xml, Text};
 use crate::util::error::MyError;
+use chrono::NaiveDate;
+use regex::Regex;
+use rocket::serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Solde {
-    pub date: String,
-    pub montant: i32,
+    pub date: NaiveDate,
+    pub montant: Value,
 }
 
 pub fn get_texts_of_page(page: &Page) -> Vec<Text> {
@@ -25,44 +30,50 @@ pub fn get_texts_of_page(page: &Page) -> Vec<Text> {
 
 pub fn get_xml_solde(page: &Page) -> Result<Solde, MyError> {
     let texts = get_texts_of_page(page);
-    let candidates: Vec<_> = texts.iter().filter(|t| t.value == "SOLDE").collect();
-    let candidate = candidates.get(0);
-    if candidate.is_none() {
-        return Err(MyError::Message("no candidate".to_string()));
-    }
-    let candidate = candidate.expect("candidate");
-    let mut others: Vec<_> = texts
+    let candidates: Vec<_> = texts
         .iter()
-        .filter(|text| (text.top - candidate.top).abs() < 3)
+        .filter(|t| t.value.starts_with("SOLDE"))
         .collect();
-    others.sort_by(|a, b| a.left.cmp(&b.left));
-    // dbg!(&others);
-    if others.get(0).expect("0").value != "SOLDE" {
-        return Err(MyError::Message("internal error 0".to_string()));
-    };
-    let credit_debit = &others.get(1).expect("1").value;
-    let credit_bool = match credit_debit.as_str() {
-        "CREDITEUR" => true,
-        "DEBITEUR" => false,
-        _ => return Err(MyError::Message("internal error 1".to_string())),
-    };
-    if others.get(2).expect("2").value != "AU" {
-        return Err(MyError::Message("internal error".to_string()));
-    };
-    let date = others.get(3).expect("3");
-    let mut montant = "".to_string();
-    for i in 4..others.len() {
-        montant = format!("{} {}", montant, others.get(i).expect("loop").value);
-    }
-    // dbg!(&montant);
-    let montant = montant.replace(" ", "").replace(",", "");
-    let montant = montant.parse::<i32>().expect("parse ok");
-    let montant = if credit_bool { montant } else { -montant };
+    let candidate = candidates.get(0);
+    let candidate = candidate.ok_or(MyError::Message(
+        "cannot find candidate for xml solde".to_string(),
+    ))?;
+    let re_credit = Regex::new(r"SOLDE CREDITEUR AU (\d\d\.\d\d\.\d\d\d\d)").unwrap();
+    let re_debit = Regex::new(r"SOLDE DEBITEUR AU (\d\d\.\d\d\.\d\d\d\d)").unwrap();
 
-    Ok(Solde {
-        date: date.value.clone(),
-        montant: montant,
-    })
+    let cap_credit = re_credit.captures(&candidate.value.as_str());
+    let cap_debit = re_debit.captures(&candidate.value.as_str());
+
+    let other = texts
+        .iter()
+        .filter(|row| (row.top as i32 - candidate.top as i32).abs() < 3)
+        .filter(|row| row != candidate)
+        .next();
+    let other = other.ok_or(MyError::Message(
+        "cannot find candidate for xml solde".to_string(),
+    ))?;
+    let value = other.value.replace(" ", "").replace(",", "");
+    let value = value.parse::<u32>()?;
+
+    match (cap_credit, cap_debit) {
+        (Some(s), None) => {
+            let s = s.get(1).ok_or(MyError::Message("huh ? ".to_string()))?;
+            let nd = NaiveDate::parse_from_str(s.as_str(), "%d.%m.%Y")?;
+            Ok(Solde {
+                date: nd,
+                montant: Value::Credit(value),
+            })
+        }
+        (None, Some(s)) => {
+            let s = s.get(1).ok_or(MyError::Message("huh ?".to_string()))?;
+            let nd = NaiveDate::parse_from_str(s.as_str(), "%d.%m.%Y")?;
+            Ok(Solde {
+                date: nd,
+                montant: Value::Debit(value),
+            })
+        }
+        _ => Err(MyError::Message("huh ?".to_string())),
+    }
 }
 
 pub fn get_xml_solde_before(p: &Pdf2xml) -> Result<Solde, MyError> {

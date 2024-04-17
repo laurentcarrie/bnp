@@ -1,92 +1,51 @@
 use crate::jobs::model::TotalDesOperations;
 use crate::jobs::solde::get_texts_of_page;
-use crate::jobs::xml_model::{Page, Pdf2xml, Text};
+use crate::jobs::xml_model::{Page, Pdf2xml};
 use crate::util::error::MyError;
-use regex::Regex;
-use std::collections::HashSet;
 
 pub fn total_des_operations_of_page(page: &Page) -> Option<TotalDesOperations> {
     let texts = get_texts_of_page(&page);
-    let total_hash: HashSet<i32> = texts
+    let found: Vec<u32> = texts
         .iter()
         .filter_map(|row| match row.value.as_str() {
-            "TOTAL" => Some(row.top),
+            "TOTAL DES OPERATIONS" => Some(row.top),
             _ => None,
         })
         .collect();
-    if total_hash.is_empty() {
+    if found.is_empty() {
         return None;
     }
+    let top = found.get(0).unwrap();
 
-    let des_hash: HashSet<i32> = texts
+    let mut all = texts
         .iter()
-        .filter_map(|row| match row.value.as_str() {
-            "DES" => Some(row.top),
-            _ => None,
-        })
-        .collect();
+        .filter_map(|row| if row.top == *top { Some(row) } else { None })
+        .collect::<Vec<_>>();
 
-    let operations_hash: HashSet<i32> = texts
-        .iter()
-        .filter_map(|row| match row.value.as_str() {
-            "OPERATIONS" => Some(row.top),
-            _ => None,
-        })
-        .collect();
+    all.sort_by(|a, b| a.left.cmp(&b.left));
 
-    let intersection: HashSet<_> = total_hash
-        .intersection(&des_hash)
-        .map(|x| x.to_owned())
-        .collect();
-    let intersection: HashSet<_> = intersection.intersection(&operations_hash).collect();
-    // let result :HashSet<i32>= total_hash.intersection(&des_hash).collect() ;
-    // dbg!(&result) ;
+    // dbg!(&all);
+    let debit: u32 = all
+        .get(1)?
+        .value
+        .replace(" ", "")
+        .replace(",", "")
+        .parse::<u32>()
+        .ok()?;
+    let credit: u32 = all
+        .get(2)?
+        .value
+        .replace(" ", "")
+        .replace(",", "")
+        .parse::<u32>()
+        .ok()?;
 
-    match intersection.len() {
-        0 => None,
-        1 => {
-            let top = intersection
-                .iter()
-                .collect::<Vec<_>>()
-                .get(0)
-                .unwrap()
-                .clone()
-                .to_owned();
-            let mut candidates = texts
-                .iter()
-                .filter(|row| row.top == *top)
-                .collect::<Vec<&Text>>();
-            candidates.sort_by(|a, b| a.left.cmp(&b.left));
-            let mut candidates = candidates
-                .iter()
-                .map(|t| t.value.clone())
-                .collect::<Vec<_>>();
-            candidates.drain(0..3);
-            let s = candidates.join(" ");
-            let re = Regex::new(r"([\d ]+,\d+) *(.*)").unwrap();
-            let caps = re.captures(s.as_str())?;
-            let debit: i32 = caps
-                .get(1)?
-                .as_str()
-                .replace(" ", "")
-                .replace(",", "")
-                .parse::<i32>()
-                .ok()?;
-            let credit: i32 = caps
-                .get(2)?
-                .as_str()
-                .replace(" ", "")
-                .replace(",", "")
-                .parse::<i32>()
-                .ok()?;
-            Some(TotalDesOperations {
-                debit: debit,
-                credit: credit,
-                top: *top,
-            })
-        }
-        _ => None,
-    }
+    Some(TotalDesOperations {
+        debit: debit,
+        credit: credit,
+        top: *top,
+        page_number: page.number,
+    })
 }
 
 pub fn total_des_operations_of_xml(xml: &Pdf2xml) -> Result<TotalDesOperations, MyError> {
@@ -105,5 +64,4 @@ pub fn total_des_operations_of_xml(xml: &Pdf2xml) -> Result<TotalDesOperations, 
             n
         ))),
     }
-    // Err(MyError::Message("blah blah".to_string()))
 }

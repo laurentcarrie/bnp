@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename = "pdf2xml")]
 pub struct Text {
-    pub top: i32,
-    pub left: i32,
-    pub width: i32,
-    pub height: i32,
+    pub top: u32,
+    pub left: u32,
+    pub width: u32,
+    pub height: u32,
     pub font: String,
     #[serde(rename = "$value")]
     pub value: String,
@@ -54,12 +54,12 @@ pub struct Pdf2xml {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename = "page")]
 pub struct Page {
-    pub number: i32,
+    pub number: u32,
     pub position: String,
-    pub top: i32,
-    pub left: i32,
-    pub height: i32,
-    pub width: i32,
+    pub top: u32,
+    pub left: u32,
+    pub height: u32,
+    pub width: u32,
     #[serde(rename = "$value")]
     pub items: Option<Vec<Item>>,
 }

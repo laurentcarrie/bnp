@@ -1,8 +1,10 @@
 use chrono::{Datelike, NaiveDate};
 use regex::Regex;
+use rocket::serde::{Deserialize, Serialize};
 
 use crate::jobs::enclosing_dates::enclosing_dates_of_page;
 use crate::jobs::model::{Row, Table, Value};
+use crate::jobs::solde::get_xml_solde;
 use crate::jobs::total_des_operations::total_des_operations_of_page;
 use crate::jobs::xml_model::{Item, Page, Text};
 use crate::util::error::MyError;
@@ -109,50 +111,128 @@ pub fn naive_date_of_string(
     Ok(nd)
 }
 
-pub fn split_to_cells(
-    texts: Vec<&Text>,
-    rows: Vec<i32>,
-    cols: Vec<i32>,
-) -> Result<Vec<Vec<String>>, String> {
-    let mut result: Vec<Vec<String>> = vec![];
-    for irow in 0..(rows.len() - 1) {
-        let mut row: Vec<String> = vec![];
-        let xmin = rows.get(irow).expect("internal").clone();
-        let xmax = rows.get(irow + 1).expect("internal").clone();
-        for icol in 0..(cols.len() - 1) {
-            let ymin = cols.get(icol).expect("internal").clone();
-            let ymax = cols.get(icol + 1).expect("internal").clone();
-            // println!(
-            //     "===================> {} => {} ; {} => {}",
-            //     xmin, xmax, ymin, ymax
-            // );
-            let values: Vec<String> = texts
-                .iter()
-                .filter(|t| {
-                    (t.left >= ymin) && (t.left < ymax) && (t.top >= xmin) && (t.top < xmax)
-                })
-                .map(|t| t.value.clone())
-                .collect();
-            let value = values.join(" ");
-            // println!("    [{},{}] '{}'", irow, icol, value);
-            row.push(value);
-        }
-        result.push(row);
-    }
+fn validate_candidate(texts: &Vec<&Text>, candidate: &Text, check: &str) -> bool {
+    let others = texts
+        .iter()
+        .filter(|t| (t.top as i32 - candidate.top as i32).abs() < 3)
+        .filter(|t| *t != &candidate)
+        .filter(|t| t.value == check)
+        .next();
+    // dbg!(&candidate);
+    // dbg!(&check);
+    // dbg!(&others);
+    others.is_some()
+}
+fn find_column(texts: &Vec<&Text>, what: &str, check: &str) -> Result<Text, MyError> {
+    // in the xml file, the "Date" field of the pdf document is in two parts, "D" and "ate"
+    let candidate = texts
+        .iter()
+        .filter(|t| t.value == what)
+        .filter(|t| validate_candidate(texts, t, check))
+        .collect::<Vec<_>>();
+    // dbg!(&candidate);
+    // let candidate = candidate.get(0).unwrap() ;
 
-    // let s1 = Series::new("Date", &["Apple", "Apple", "Pear"]);
-    // let s2 = Series::new("Nature", &["Red", "Yellow", "Green"]);
-    //
-    // let df: PolarsResult<DataFrame> = DataFrame::new(vec![s1, s2]);
-    // println!("{:?}", df);
-    // for row in rows {
-    //
-    // }
-    return Ok(result);
+    let candidate = candidate
+        .get(0)
+        .ok_or(MyError::Message(format!(
+            "could not find {} ; {}",
+            what, check
+        )))?
+        .clone()
+        .clone()
+        .clone();
+    // dbg!(&candidate);
+    Ok(candidate)
+}
+
+fn row_of_date(
+    date: Text,
+    texts: &Vec<&Text>,
+    (ec1, ec2): (NaiveDate, NaiveDate),
+    right_of_credit: u32,
+    right_of_debit: u32,
+) -> Result<Row, MyError> {
+    let mut candidates = texts
+        .iter()
+        .filter(|t| (t.top as i32 - date.top as i32).abs() < 2)
+        .collect::<Vec<_>>();
+    candidates.sort_by(|a, b| a.left.cmp(&b.left));
+    // dbg!(&candidates);
+    let naivedate = &candidates
+        .get(0)
+        .ok_or(MyError::Message("could not find 0".to_string()))?
+        .value;
+    let re = Regex::new(r"(\d\d)\.(\d\d)").unwrap();
+    let caps = re
+        .captures(naivedate.as_str())
+        .ok_or(MyError::Message(format!("bad date : {}", naivedate)))?;
+    let day = caps
+        .get(1)
+        .ok_or(MyError::Message("could not find day".to_string()))?
+        .as_str()
+        .parse::<u32>()?;
+    let month = caps
+        .get(2)
+        .ok_or(MyError::Message("could not find month".to_string()))?
+        .as_str()
+        .parse::<u32>()?;
+    let year = if month == ec1.month() {
+        ec1.year()
+    } else if month == ec2.month() {
+        ec1.year()
+    } else {
+        return Err(MyError::Message(format!(
+            "{} does not match {} or {}",
+            month, ec1, ec2
+        )));
+    };
+    let naivedate =
+        NaiveDate::parse_from_str(format!("{}.{}.{}", day, month, year).as_str(), "%d.%m.%Y")?;
+
+    // rows has n elements, nature consumes nn elements
+    // 0 : date, 1..1+nn : nature, 2+nn : valeur, 3+nn: value
+    // nn = candidate.len - 3
+    let nn = candidates.len() - 3;
+
+    let nature = &candidates
+        .get(1)
+        .ok_or(MyError::Message("could not find 1".to_string()))?
+        .value;
+    let value_text = &candidates
+        .get(candidates.len() - 1)
+        .ok_or(MyError::Message("could not find 3".to_string()))?;
+    let value = value_text
+        .value
+        .replace(" ", "")
+        .replace(",", "")
+        .parse::<u32>()?;
+    let value = if value_text.left > right_of_debit {
+        Value::Credit(value)
+    } else {
+        Value::Debit(value)
+        //         return Err(MyError::Message(format!("cannot determine debit or credit, left={}, width={}, right_of_credit={}, right_of_debit={}, nature={}",
+        // value_text.left,value_text.width,right_of_credit,right_of_debit,&nature
+        //         )));
+    };
+    let poste = guess_poste(nature.clone());
+    let row = Row {
+        date: naivedate,
+        nature: nature.clone(),
+        value: value,
+        poste: poste.clone(),
+        commentaire: "".to_string(),
+    };
+    Ok(row)
 }
 
 pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
+    // println!("parse page #{}", page.number);
     let ec = enclosing_dates_of_page(page)?;
+    // let solde = get_xml_solde(&page)?;
+    let total_des_operations = total_des_operations_of_page(&page);
+    // dbg!(&total_des_operations);
+
     let texts: Vec<&Text> = match &page.items {
         None => vec![],
         Some(v) => v
@@ -165,155 +245,60 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
             .map(|t| t.unwrap())
             .collect(),
     };
-    let date_header: Vec<&&Text> = texts.iter().filter(|t| t.value == "Date").collect();
-    dbg!(&date_header);
-    // println!("found {} date", date_header.len());
-    if date_header.len() != 1 {
-        return Ok(Table {
-            rows: vec![],
-            releve: releve,
-            total_des_operations_credit: 0,
-            total_des_operations_debit: 0,
-        });
-        // return Err(format!("more or zero field Date : {}, page #{}",date_header.len(),page.number).to_string());
-    }
-    let date_header = date_header.get(0).ok_or("no 0 ???".to_string())?;
-    let date_left: i32 = date_header.left - 1;
-    let date_rows: Vec<&Text> = texts
+    let date_column = find_column(&texts, "D", "ate")?;
+    // dbg!(&date_column);
+
+    let nature_column = find_column(&texts, "N", "ature des opérations")?;
+    // dbg!(&nature_column);
+
+    let valeur_column = find_column(&texts, "V", "aleur")?;
+    // dbg!(&valeur_column);
+
+    let debit_column = find_column(&texts, "D", "ébit")?;
+    // dbg!(&debit_column);
+
+    let credit_column = find_column(&texts, "C", "rédit")?;
+    // dbg!(&credit_column);
+
+    let date_rows: Vec<_> = texts
         .iter()
-        .filter(|t| t.left == date_left)
-        .map(|t| t.clone())
+        .filter(|t| t.top > date_column.top)
+        .filter(|t| (t.left as i32 - date_column.left as i32).abs() < 2)
+        .filter(|t| match &total_des_operations {
+            None => true,
+            Some(total) => t.top < total.top,
+        })
         .collect();
-    // println!("found {} date rows", date_rows.len());
+    // dbg!(&date_rows);
 
-    // let last_line: Vec<&&Text> = texts.iter().filter(|t| t.value == "TOTAL").collect();
-    // if last_line.len() != 1 {
-    //     return Err("more or zero field last line".to_string());
-    // }
+    let right_of_credit = credit_column.left + credit_column.width;
+    let right_of_debit = debit_column.left + debit_column.width;
 
-    let last_line_top = match total_des_operations_of_page(&page) {
-        Some(t) => t.top,
-        None => 1200,
-    };
-
-    let last_line: Text = Text {
-        top: last_line_top,
-        left: 0,
-        width: 0,
-        value: "".to_string(),
-        height: 0,
-        font: "".to_string(),
-    };
-    let last_line = &last_line;
-    // dbg!("last line", &last_line);
-    let mut date_rows: Vec<&&Text> = date_rows
+    let rows: Result<Vec<_>, _> = date_rows
         .iter()
-        .filter(|row| row.top < last_line.top)
-        .map(|row| row)
-        .collect();
-    date_rows.push(&last_line);
-
-    let nature_header: Vec<&&Text> = texts
-        .iter()
-        .filter(|t| t.value == "Nature" && (t.top - date_header.top).abs() < 3)
-        .collect();
-    // println!("found {} nature", nature_header.len());
-    if nature_header.len() != 1 {
-        return Err(MyError::Message("more or zero field Nature".to_string()));
-    }
-    let nature_header = nature_header.get(0).ok_or("no 0 ???".to_string())?;
-
-    let valeur_header: Vec<&&Text> = texts
-        .iter()
-        .filter(|t| t.value == "Valeur" && t.top == date_header.top)
-        .collect();
-    // println!("found {} value ", valeur_header.len());
-    if valeur_header.len() != 1 {
-        return Err(MyError::Message("more or zero field Valeur".to_string()));
-    }
-    let valeur_header = valeur_header.get(0).ok_or("no 0 ???".to_string())?;
-
-    let valeur_debit: Vec<&&Text> = texts
-        .iter()
-        .filter(|t| t.value == "Débit" && (t.top - date_header.top).abs() < 3)
-        .collect();
-    // println!("found {} value ", valeur_debit.len());
-    if valeur_debit.len() != 1 {
-        return Err(MyError::Message("more or zero field Debit".to_string()));
-    }
-    let valeur_debit = valeur_debit.get(0).ok_or("no 0 ???".to_string())?;
-
-    let valeur_credit: Vec<&&Text> = texts
-        .iter()
-        .filter(|t| t.value == "Crédit" && (t.top - date_header.top).abs() < 3)
-        .collect();
-    // println!("found {} value ", valeur_credit.len());
-    if valeur_credit.len() != 1 {
-        return Err(MyError::Message("more or zero field Credit".to_string()));
-    }
-    let valeur_credit = valeur_credit.get(0).ok_or("no 0 ???".to_string())?;
-
-    let rows: Vec<i32> = date_rows.iter().map(|i| i.top - 1).collect();
-    // dbg!("rows", &rows);
-    let cols = vec![
-        0,
-        nature_header.left,
-        valeur_header.left,
-        valeur_header.left + valeur_header.width,
-        valeur_debit.left + valeur_debit.width,
-        valeur_credit.left + valeur_credit.width,
-    ];
-
-    let stringtable = split_to_cells(texts, rows, cols)?;
-    let rows: Result<Vec<Row>, MyError> = stringtable
-        .iter()
-        .map(|row| {
-            let date = row.get(0).expect("date").to_string();
-            let nature = row.get(1).expect("nature").to_string();
-            let debit = row
-                .get(3)
-                .expect("debit")
-                .to_string()
-                .replace(" ", "")
-                .replace(",", "")
-                .parse::<i32>();
-            let credit = row
-                .get(4)
-                .expect("credit")
-                .to_string()
-                .replace(" ", "")
-                .replace(",", "")
-                .parse::<i32>();
-            let value = match (credit, debit) {
-                (Ok(v), Err(_)) => Value::Credit(v),
-                (Err(_), Ok(v)) => Value::Debit(v),
-                (Ok(_), Ok(_)) => {
-                    return Err(MyError::Message("both debit and credit".to_string()));
-                }
-                (Err(_), Err(_)) => {
-                    return Err(MyError::Message("neither debit nor credit".to_string()));
-                }
-            };
-            let date = naive_date_of_string(date.as_str(), ec)?;
-            Ok(Row {
-                date: date,
-                nature: nature.clone(),
-                value: value,
-                poste: guess_poste(nature),
-                commentaire: "".to_string(),
-            })
+        .map(|r| {
+            let rr = r.clone();
+            let rrr = rr.clone();
+            let rrrr = rrr.clone();
+            let r = row_of_date(rrrr, &texts, ec, right_of_credit, right_of_debit);
+            if r.is_err() {
+                dbg!(&r);
+            }
+            r
         })
         .collect();
     let rows = rows?;
-    let (total_credit, total_debit) = match total_des_operations_of_page(&page) {
-        Some(t) => (t.credit, t.debit),
-        None => (0, 0),
-    };
-    let table = Table {
+
+    Ok(Table {
         releve: releve,
-        total_des_operations_credit: total_credit,
-        total_des_operations_debit: total_debit,
+        total_des_operations_credit: match &total_des_operations {
+            None => 0,
+            Some(s) => s.credit,
+        },
+        total_des_operations_debit: match &total_des_operations {
+            None => 0,
+            Some(s) => s.debit,
+        },
         rows: rows,
-    };
-    Ok(table)
+    })
 }

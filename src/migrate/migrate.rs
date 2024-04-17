@@ -1,4 +1,4 @@
-use crate::jobs::iomodel::{releve_of_path, save};
+use crate::jobs::iomodel::save;
 use crate::jobs::scan::scan;
 use crate::util::error::MyError;
 
@@ -16,7 +16,7 @@ fn migrate_one_file(path: &String) -> Result<(), MyError> {
                 date: r.date.clone(),
                 nature: r.nature.clone(),
                 value: if r.value < 0 {
-                    crate::jobs::model::Value::Debit(-r.value)
+                    crate::jobs::model::Value::Debit(r.value)
                 } else {
                     crate::jobs::model::Value::Credit(r.value)
                 },
@@ -66,6 +66,6 @@ pub fn migrate(in_dir: String) -> Result<(), MyError> {
         .iter()
         .map(|s| migrate_one_file(s))
         .collect::<Result<Vec<_>, _>>();
-    let result = result?;
+    let _result = result?;
     Ok(())
 }

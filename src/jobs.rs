@@ -9,6 +9,7 @@ mod parse_page;
 pub mod process;
 pub mod scan;
 pub mod solde;
+#[cfg(test)]
 pub mod test;
 mod total_des_operations;
 pub mod xml_model;

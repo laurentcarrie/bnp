@@ -1,5 +1,3 @@
-use crate::jobs::model;
-use crate::util::error::MyError;
 use chrono::NaiveDate;
 use rocket::serde::{Deserialize, Serialize};
 
@@ -7,7 +5,7 @@ use rocket::serde::{Deserialize, Serialize};
 pub struct Row {
     pub date: NaiveDate,
     pub nature: String,
-    pub value: i32,
+    pub value: u32,
     pub poste: String,
 }
 

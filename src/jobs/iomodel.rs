@@ -7,8 +7,8 @@ use std::fs;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Value {
-    Debit(i32),
-    Credit(i32),
+    Debit(u32),
+    Credit(u32),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -24,8 +24,8 @@ pub struct Row {
 pub struct Table {
     pub releve: NaiveDate,
     pub rows: Vec<Row>,
-    pub total_des_operations_debit: i32,
-    pub total_des_operations_credit: i32,
+    pub total_des_operations_debit: u32,
+    pub total_des_operations_credit: u32,
 }
 
 fn iorow_of_row(row: &model::Row) -> Row {

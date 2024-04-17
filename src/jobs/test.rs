@@ -1,3 +1,4 @@
+#[cfg(test)]
 use std::fs;
 
 use chrono::NaiveDate;
@@ -17,7 +18,7 @@ fn test_montant_before() -> Result<(), String> {
     let data = fs::read_to_string(out_path).unwrap();
     let p: Pdf2xml = from_str(&data).unwrap();
     let s = get_xml_solde_before(&p).unwrap();
-    assert_eq!(s.montant, 149428);
+    assert_eq!(s.montant, Value::Credit(149428));
     Ok(())
 }
 
@@ -27,7 +28,7 @@ fn test_montant_after() -> Result<(), String> {
     let data = fs::read_to_string(out_path).unwrap();
     let p: Pdf2xml = from_str(&data).unwrap();
     let s = get_xml_solde_after(&p).unwrap();
-    assert_eq!(s.montant, -117738);
+    assert_eq!(s.montant, Value::Debit(117738));
     Ok(())
 }
 
@@ -150,7 +151,7 @@ fn test_page_last() -> Result<(), MyError> {
 #[test]
 fn test_doc_0() -> Result<(), MyError> {
     let in_path = "RLV_CHQ_300040079300004047403_20240116.pdf";
-    let table = scan(in_path.to_string())?;
+    let table = scan(in_path.to_string()).unwrap();
     let _json = serde_json::to_string(&table).unwrap();
     // fs::write("RLV_CHQ_300040079300004047403_20240116.json", &json).unwrap();
 
@@ -170,6 +171,8 @@ fn test_doc_1() -> Result<(), MyError> {
             Value::Credit(v) => (credit + v, debit),
             Value::Debit(v) => (credit, debit + v),
         });
+    let json = serde_json::to_string(&table)?;
+    let _x = fs::write("hello.json", json)?;
     assert_eq!(credit, 436139);
     assert_eq!(debit, 703305);
     Ok(())
