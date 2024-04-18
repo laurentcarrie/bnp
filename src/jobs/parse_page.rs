@@ -3,7 +3,7 @@ use regex::Regex;
 use rocket::serde::{Deserialize, Serialize};
 
 use crate::jobs::enclosing_dates::enclosing_dates_of_page;
-use crate::jobs::model::{Row, Table, Value};
+use crate::jobs::model::{Row, Table, TotalDesOperations, Value};
 use crate::jobs::solde::get_xml_solde;
 use crate::jobs::total_des_operations::total_des_operations_of_page;
 use crate::jobs::xml_model::{Item, Page, Text};
@@ -82,33 +82,50 @@ fn guess_poste(nature: String) -> String {
 
     "?".to_string()
 }
-// pub fn last_page_index(xml: &Pdf2xml) -> Result<usize, MyError> {
-//     for i in (0..xml.pages.len() - 1).rev() {
-//         if is_last_page(xml.pages.get(i).unwrap()) {
-//             return Ok(i);
-//         }
-//     }
-//     Err(MyError::Message("could not find last page".to_string()))
-// }
 
-pub fn naive_date_of_string(
-    s: &str,
-    (nd1, nd2): (NaiveDate, NaiveDate),
-) -> Result<NaiveDate, MyError> {
-    let re = Regex::new(r"(\d+).(\d+)").unwrap();
-    let caps = re.captures(s).ok_or(MyError::Message("xxx".to_string()))?;
-    let day = caps.get(1).unwrap().as_str().parse::<u32>().unwrap();
-    let month = caps.get(2).unwrap().as_str().parse::<u32>().unwrap();
-    let year = if month == nd1.month() {
-        nd1.year()
-    } else if month == nd2.month() {
-        nd2.year()
-    } else {
-        return Err(MyError::Message("internal".to_string()));
+fn get_nature(
+    texts: &Vec<&Text>,
+    date: &Text,
+    left_of_nature: u32,
+    left_of_valeur: u32,
+    total_des_operations: &Option<TotalDesOperations>,
+) -> Result<String, MyError> {
+    let next_date = texts
+        .iter()
+        .filter(|t| t.top > date.top && t.left == date.left)
+        .filter(|t| match total_des_operations {
+            None => true,
+            Some(total) => t.top < total.top,
+        })
+        .next();
+    let last_line = match (next_date, total_des_operations) {
+        (Some(d), _) => d.top - 1,
+        (None, Some(total)) => total.top - 1,
+        (None, None) => 10000,
     };
-    let ss = format!("{:04}-{:02}-{:02}", year, month, day);
-    let nd = NaiveDate::parse_from_str(ss.as_str(), "%Y-%m-%d")?;
-    Ok(nd)
+    // let next_date = next_date.ok_or(MyError::Message("could not find next date".to_string()))? ;
+    let candidates = texts
+        .iter()
+        .filter(|t| {
+            t.top >= date.top - 1
+                && t.left >= left_of_nature
+                && (t.left + t.width) < left_of_valeur
+                && t.top < last_line
+        })
+        .collect::<Vec<_>>();
+    // dbg!(candidates);
+    let natures = candidates
+        .iter()
+        .map(|t| t.value.clone())
+        .collect::<Vec<_>>();
+    let nature = natures.join(" ");
+    if nature.contains("GATFIC") {
+        dbg!(&nature);
+        dbg!(&total_des_operations);
+        dbg!(&last_line);
+        dbg!(&next_date);
+    }
+    Ok(nature)
 }
 
 fn validate_candidate(texts: &Vec<&Text>, candidate: &Text, check: &str) -> bool {
@@ -150,8 +167,11 @@ fn row_of_date(
     date: Text,
     texts: &Vec<&Text>,
     (ec1, ec2): (NaiveDate, NaiveDate),
+    left_of_nature: u32,
+    left_of_valeur: u32,
     right_of_credit: u32,
     right_of_debit: u32,
+    total_des_operations: &Option<TotalDesOperations>,
 ) -> Result<Row, MyError> {
     let mut candidates = texts
         .iter()
@@ -195,10 +215,17 @@ fn row_of_date(
     // nn = candidate.len - 3
     let nn = candidates.len() - 3;
 
-    let nature = &candidates
-        .get(1)
-        .ok_or(MyError::Message("could not find 1".to_string()))?
-        .value;
+    // let nature = &candidates
+    //     .get(1)
+    //     .ok_or(MyError::Message("could not find 1".to_string()))?
+    //     .value;
+    let nature = get_nature(
+        texts,
+        &date,
+        left_of_nature,
+        left_of_valeur,
+        total_des_operations,
+    )?;
     let value_text = &candidates
         .get(candidates.len() - 1)
         .ok_or(MyError::Message("could not find 3".to_string()))?;
@@ -231,7 +258,7 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
     let ec = enclosing_dates_of_page(page)?;
     // let solde = get_xml_solde(&page)?;
     let total_des_operations = total_des_operations_of_page(&page);
-    // dbg!(&total_des_operations);
+    dbg!(&total_des_operations);
 
     let texts: Vec<&Text> = match &page.items {
         None => vec![],
@@ -271,6 +298,8 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
         .collect();
     // dbg!(&date_rows);
 
+    let left_of_nature = nature_column.left;
+    let left_of_valeur = valeur_column.left;
     let right_of_credit = credit_column.left + credit_column.width;
     let right_of_debit = debit_column.left + debit_column.width;
 
@@ -280,7 +309,16 @@ pub fn parse_page(page: &Page, releve: NaiveDate) -> Result<Table, MyError> {
             let rr = r.clone();
             let rrr = rr.clone();
             let rrrr = rrr.clone();
-            let r = row_of_date(rrrr, &texts, ec, right_of_credit, right_of_debit);
+            let r = row_of_date(
+                rrrr,
+                &texts,
+                ec,
+                left_of_nature,
+                left_of_valeur,
+                right_of_credit,
+                right_of_debit,
+                &total_des_operations,
+            );
             if r.is_err() {
                 dbg!(&r);
             }

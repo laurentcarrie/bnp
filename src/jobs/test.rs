@@ -190,3 +190,37 @@ fn test_enclosing_dates() -> Result<(), MyError> {
     assert_eq!(s2, nd2);
     Ok(())
 }
+
+#[test]
+fn test_whole_nature() -> Result<(), MyError> {
+    let in_path = "RLV_CHQ_300040079300004047403_20240116.pdf";
+    let table = scan(in_path.to_string())?;
+    dbg!(&table.rows);
+    dbg!(&table.rows.len());
+    dbg!(&table.rows.get(table.rows.len() - 1));
+    {
+        let nature = "PRLV SEPA HENNER GMC-HENNER-GMC ECH/151223 ID EMETTEUR/FR56ZZZ414162 MDT/H1162569942 REF/HEN001340433792 EN000066071820 LIB/HEN001340433792 EN000066071820";
+        let index = 2;
+        let row = table.rows.get(index).unwrap();
+        assert_eq!(nature, row.nature.as_str());
+    }
+    {
+        let nature = "PRLV SEPA 22/24 AV. FOCH - LA GARENNE C. ECH/120124 ID EMETTEUR/FR80ZZZ825BFD MDT/++W0403C000016568N000002562 REF/202401101649-2-72-5-04310040 LIB/PRL. SYNDIC CITYA GATFIC";
+        let index = table.rows.len() - 1;
+        let row = table.rows.get(index).unwrap();
+        assert_eq!(nature, row.nature.as_str());
+    }
+
+    {
+        // for i in 0..table.rows.len() {
+        //     if table.rows.get(i).unwrap().nature.contains("NAVIGO") {
+        //         println!("{}", i);
+        //     }
+        // }
+        let nature="PRLV SEPA NAVIGO ANNUEL - COMUTITRES SAS ECH/030124 ID EMETTEUR/FR42ZZZ457385 MDT/FR42ZZZ45738550214077876357040044 REF/3/50214077876357/793678316 LIB/NAVIGO ANNUEL" ;
+        let index = 92;
+        let row = table.rows.get(index).unwrap();
+        assert_eq!(nature, row.nature.as_str());
+    }
+    Ok(())
+}
