@@ -1,10 +1,19 @@
 # mybnp
 
-[![CI](https://github.com/lmusic/mybnp/actions/workflows/ci.yml/badge.svg)](https://github.com/lmusic/mybnp/actions/workflows/ci.yml)
+[![CI](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml/badge.svg)](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/mybnp.svg)](https://crates.io/crates/mybnp)
 
 A Rust library and CLI tool to parse BNP Paribas bank statements (PDF) and extract operations to YAML.
 
 ## Installation
+
+From crates.io:
+
+```bash
+cargo install mybnp
+```
+
+From source:
 
 ```bash
 cargo install --path .
@@ -16,13 +25,13 @@ cargo install --path .
 mybnp <pdf_file>
 ```
 
-Parses the PDF bank statement and outputs a YAML file with the same name.
+Parses the PDF bank statement and outputs a YAML file with the same name (e.g., `statement.pdf` → `statement.yml`).
 
 ### Example
 
 ```bash
-mybnp statement.pdf
-# Creates statement.yml
+$ mybnp statement.pdf
+Parsed 42 operations (date: 2025-02-13) -> statement.yml
 ```
 
 ### Output Format
