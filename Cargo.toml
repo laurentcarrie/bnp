@@ -1,44 +1,16 @@
 [package]
-name = "bnp"
-version='2024.4.16'
-edition = "2021"
+name = "mybnp"
+version = "0.1.0"
+edition = "2024"
+description = "Parse BNP Paribas bank statements (PDF) and extract operations"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "mybnp"
+path = "src/main.rs"
 
 [dependencies]
-#aws-sdk-dynamodb = "1.10.1"
-#tracing = "0.1.37"
-#tracing-subscriber = { version="0.3.18" , features = ["env-filter"]}
-anyhow = "1.0.70"
-base64 = "0.21.7"
-chrono = { version = "0.4.31", features = ["serde"] }
-clap = { version="4.4.14" ,features = ["derive","env"]}
-curl = "0.4.44"
-futures = { version = "0.3", default-features = false,features=["executor"] }
-getrandom = { version = "0.2", features = ["js"] }
-itertools = "0.12.1"
-js-sys = "0.3.66"
-plotly = { version = "0.8.4", features = ["wasm"] }
-polars = "0.38.0"
-postgres = { version = "0.19.7", features = ["array-impls", "with-chrono-0_4", "with-serde_json-1", "with-uuid-1", "with-time-0_3"] }
-rand = "0.8.5"
-regex = "1.10.3"
-reqwest = "0.11.23"
-rocket = { version = "0.5.0", features = ["http2", "mtls", "tls", "json"] }
-rocket-response = "0.0.1-rc.2"
-rocket_dyn_templates = { version = "0.1.0", features = ["tera"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = [] }
-shlex = "1.3.0"
-tokio = { version = "1", features = ["full"] }
-tokio-postgres = "0.7.10"
-uuid = { version="1.7.0" ,features = ["v4"]}
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4.40"
-#serde_xml_rs = {version="0.6.0",features = ["derive"]}
-serde-xml-rs = "0.6.0"
-raw-cpuid = "11.0.1"
-approx="0.3.2"
-pdf-extract = "0.7.5"
-lopdf="0.32.0"
-easy_paths="0.1.1"
+pdf-extract = "0.10"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
