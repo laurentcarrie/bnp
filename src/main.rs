@@ -1,4 +1,4 @@
-use mybnp::{parse_pdf, Releve};
+use mybnp::{Releve, parse_pdf};
 use std::fs;
 use std::path::Path;
 

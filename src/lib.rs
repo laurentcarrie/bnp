@@ -126,7 +126,8 @@ fn is_stop_line(line: &str, line_re: &Regex, line_re_no_text: &Regex) -> bool {
 }
 
 fn parse_soldes(text: &str) -> (Option<Solde>, Option<Solde>) {
-    let re = Regex::new(r"SOLDE (CREDITEUR|DEBITEUR) AU \d{2}\.\d{2}\.\d{4}\s+([\d\s]+,\d{2})").unwrap();
+    let re =
+        Regex::new(r"SOLDE (CREDITEUR|DEBITEUR) AU \d{2}\.\d{2}\.\d{4}\s+([\d\s]+,\d{2})").unwrap();
 
     let matches: Vec<_> = re.captures_iter(text).collect();
 
@@ -137,7 +138,10 @@ fn parse_soldes(text: &str) -> (Option<Solde>, Option<Solde>) {
             SoldeType::Debit
         };
         let montant = parse_amount(caps.get(2)?.as_str())?;
-        Some(Solde { solde_type, montant })
+        Some(Solde {
+            solde_type,
+            montant,
+        })
     });
 
     let cloture = matches.last().and_then(|caps| {
@@ -147,7 +151,10 @@ fn parse_soldes(text: &str) -> (Option<Solde>, Option<Solde>) {
             SoldeType::Debit
         };
         let montant = parse_amount(caps.get(2)?.as_str())?;
-        Some(Solde { solde_type, montant })
+        Some(Solde {
+            solde_type,
+            montant,
+        })
     });
 
     (ouverture, cloture)
@@ -186,25 +193,26 @@ fn parse_operations(text: &str, releve: &ReleveDateInfo) -> Vec<Operation> {
         }
 
         // Try pattern with text on same line first
-        let (date_raw, valeur_raw, amount_str, mut nature) = if let Some(caps) = line_re.captures(line) {
-            (
-                caps.get(1).unwrap().as_str(),
-                caps.get(2).unwrap().as_str(),
-                caps.get(3).unwrap().as_str().trim(),
-                caps.get(4).unwrap().as_str().trim().to_string(),
-            )
-        } else if let Some(caps) = line_re_no_text.captures(line) {
-            // Text starts on next line
-            (
-                caps.get(1).unwrap().as_str(),
-                caps.get(2).unwrap().as_str(),
-                caps.get(3).unwrap().as_str().trim(),
-                String::new(),
-            )
-        } else {
-            i += 1;
-            continue;
-        };
+        let (date_raw, valeur_raw, amount_str, mut nature) =
+            if let Some(caps) = line_re.captures(line) {
+                (
+                    caps.get(1).unwrap().as_str(),
+                    caps.get(2).unwrap().as_str(),
+                    caps.get(3).unwrap().as_str().trim(),
+                    caps.get(4).unwrap().as_str().trim().to_string(),
+                )
+            } else if let Some(caps) = line_re_no_text.captures(line) {
+                // Text starts on next line
+                (
+                    caps.get(1).unwrap().as_str(),
+                    caps.get(2).unwrap().as_str(),
+                    caps.get(3).unwrap().as_str().trim(),
+                    String::new(),
+                )
+            } else {
+                i += 1;
+                continue;
+            };
 
         let date = match parse_date_with_year(date_raw, releve) {
             Some(d) => d,
@@ -279,22 +287,27 @@ pub fn parse_pdf(path: &str) -> Result<Releve, String> {
             .ok_or("Invalid date du releve")?;
 
     let (solde_ouverture, solde_cloture) = parse_soldes(&text);
-    let (total_des_operations_debit, total_des_operations_credit) = parse_total_des_operations(&text);
+    let (total_des_operations_debit, total_des_operations_credit) =
+        parse_total_des_operations(&text);
     let operations = parse_operations(&text, &releve_info);
 
     let check_debit: f64 = (operations
         .iter()
         .filter(|op| matches!(op.montant_type, SoldeType::Debit))
         .map(|op| op.montant)
-        .sum::<f64>() * 100.0)
-        .round() / 100.0;
+        .sum::<f64>()
+        * 100.0)
+        .round()
+        / 100.0;
 
     let check_credit: f64 = (operations
         .iter()
         .filter(|op| matches!(op.montant_type, SoldeType::Credit))
         .map(|op| op.montant)
-        .sum::<f64>() * 100.0)
-        .round() / 100.0;
+        .sum::<f64>()
+        * 100.0)
+        .round()
+        / 100.0;
 
     if let Some(total_debit) = total_des_operations_debit {
         if (total_debit - check_debit).abs() > 0.01 {
