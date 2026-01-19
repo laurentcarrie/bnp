@@ -3,6 +3,8 @@ name = "mybnp"
 version = "0.1.0"
 edition = "2024"
 description = "Parse BNP Paribas bank statements (PDF) and extract operations"
+license = "MIT"
+repository = "https://github.com/laurentcarrie/bnp"
 
 [[bin]]
 name = "mybnp"
