@@ -309,22 +309,20 @@ pub fn parse_pdf(path: &str) -> Result<Releve, String> {
         .round()
         / 100.0;
 
-    if let Some(total_debit) = total_des_operations_debit {
-        if (total_debit - check_debit).abs() > 0.01 {
-            return Err(format!(
-                "Debit mismatch: total_des_operations_debit={} but check_debit={}",
-                total_debit, check_debit
-            ));
-        }
+    if let Some(total_debit) = total_des_operations_debit
+        && (total_debit - check_debit).abs() > 0.01
+    {
+        return Err(format!(
+            "Debit mismatch: total_des_operations_debit={total_debit} but check_debit={check_debit}"
+        ));
     }
 
-    if let Some(total_credit) = total_des_operations_credit {
-        if (total_credit - check_credit).abs() > 0.01 {
-            return Err(format!(
-                "Credit mismatch: total_des_operations_credit={} but check_credit={}",
-                total_credit, check_credit
-            ));
-        }
+    if let Some(total_credit) = total_des_operations_credit
+        && (total_credit - check_credit).abs() > 0.01
+    {
+        return Err(format!(
+            "Credit mismatch: total_des_operations_credit={total_credit} but check_credit={check_credit}"
+        ));
     }
 
     Ok(Releve {
