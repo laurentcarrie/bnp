@@ -1,3 +1,5 @@
 /releves/
 /target/
 *.pdf
+/pdfs/
+bnp.code-workspace

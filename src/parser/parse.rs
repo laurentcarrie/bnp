@@ -4,14 +4,18 @@ use regex::Regex;
 
 use super::model::{Operation, Releve, Solde, SoldeType};
 
-fn parse_amount(s: &str) -> Option<f64> {
+fn parse_amount(s: &str) -> Option<i64> {
     if s.is_empty() {
         return None;
     }
     // Remove all whitespace (including non-breaking spaces) and replace comma with period
     let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect();
     let cleaned = cleaned.replace(",", ".");
-    cleaned.parse::<f64>().ok()
+    // Parse as f64 then convert to cents (i64)
+    cleaned
+        .parse::<f64>()
+        .ok()
+        .map(|v| (v * 100.0).round() as i64)
 }
 
 fn french_month_to_number(month: &str) -> Result<u32, String> {
@@ -151,7 +155,7 @@ fn parse_soldes(text: &str) -> Result<(Solde, Solde), String> {
     Ok((ouverture, cloture))
 }
 
-fn parse_total_des_operations(text: &str) -> Result<(f64, f64), String> {
+fn parse_total_des_operations(text: &str) -> Result<(i64, i64), String> {
     let re = Regex::new(r"TOTAL DES OPERATIONS\s+([\d\s]+,\d{2})\s+([\d\s]+,\d{2})").unwrap();
 
     let caps = re
@@ -245,7 +249,7 @@ fn parse_operations(text: &str, releve: &ReleveDateInfo) -> Vec<Operation> {
             i += 1;
         }
 
-        let montant = parse_amount(amount_str).unwrap_or(0.0);
+        let montant = parse_amount(amount_str).unwrap_or(0);
 
         let montant_type = if nature.contains("VIR SEPA RECU")
             || nature.contains("VIR CPTE A CPTE RECU")
@@ -287,31 +291,25 @@ pub fn parse_pdf(path: &str) -> Result<Releve, String> {
         parse_total_des_operations(&text)?;
     let operations = parse_operations(&text, &releve_info);
 
-    let check_debit: f64 = (operations
+    let check_debit: i64 = operations
         .iter()
         .filter(|op| matches!(op.montant_type, SoldeType::Debit))
         .map(|op| op.montant)
-        .sum::<f64>()
-        * 100.0)
-        .round()
-        / 100.0;
+        .sum();
 
-    let check_credit: f64 = (operations
+    let check_credit: i64 = operations
         .iter()
         .filter(|op| matches!(op.montant_type, SoldeType::Credit))
         .map(|op| op.montant)
-        .sum::<f64>()
-        * 100.0)
-        .round()
-        / 100.0;
+        .sum();
 
-    if (total_des_operations_debit - check_debit).abs() > 0.01 {
+    if total_des_operations_debit != check_debit {
         return Err(format!(
             "Debit mismatch: total_des_operations_debit={total_des_operations_debit} but check_debit={check_debit}"
         ));
     }
 
-    if (total_des_operations_credit - check_credit).abs() > 0.01 {
+    if total_des_operations_credit != check_credit {
         return Err(format!(
             "Credit mismatch: total_des_operations_credit={total_des_operations_credit} but check_credit={check_credit}"
         ));
