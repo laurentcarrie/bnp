@@ -1,4 +1,4 @@
-use mybnp::{Releve, parse_pdf};
+use my_bank_statements::{Releve, parse_pdf};
 use std::fs;
 use std::path::Path;
 
@@ -6,7 +6,7 @@ fn main() {
     let path = match std::env::args().nth(1) {
         Some(p) => p,
         None => {
-            eprintln!("Usage: my-bnp-parser <pdf_file_or_directory> [output.yml]");
+            eprintln!("Usage: my-bank-statements-parser <pdf_file_or_directory> [output.yml]");
             std::process::exit(1);
         }
     };

@@ -1,17 +1,12 @@
-# mybnp
+# my-bank-statements
 
-[![CI](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml/badge.svg)](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/mybnp.svg)](https://crates.io/crates/mybnp)
+[![CI](https://github.com/laurentcarrie/my-bank-statements/actions/workflows/ci.yml/badge.svg)](https://github.com/laurentcarrie/my-bank-statements/actions/workflows/ci.yml)
 
-A Rust library and CLI tools to parse BNP Paribas bank statements (PDF) and categorize operations.
+A Rust library and CLI tools to parse bank statements (PDF) and categorize operations.
+
+Currently supports **BNP Paribas** statements.
 
 ## Installation
-
-From crates.io:
-
-```bash
-cargo install mybnp
-```
 
 From source:
 
@@ -19,14 +14,52 @@ From source:
 cargo install --path .
 ```
 
+## Workflow 
+
+```mermaid
+
+flowchart TD
+
+pdfs@{ shape: procs, label: "Relevés mensuel BNP"}
+releves@{ label: "releves.yml"}
+spec@{ label: "ventilation-specs.yml" }
+my-bank-statements-parser@{ shape: braces, label: "my-bank-statements-parser" }
+my-bank-statements-ventilate@{ shape: braces, label: "my-bank-statements-ventilate" }
+my-bank-statements-add-patterns@{shape: braces,label:"my-bank-statements-add-patterns"}
+
+md@{ label: "ventilation.md" }
+ventyml@{ label: "ventilation.yml" }
+
+
+pdfs --> my-bank-statements-parser 
+my-bank-statements-parser --> releves
+
+releves --> my-bank-statements-ventilate 
+spec --> my-bank-statements-ventilate 
+my-bank-statements-ventilate --> md
+my-bank-statements-ventilate --> ventyml
+
+releves --> my-bank-statements-add-patterns
+spec --> my-bank-statements-add-patterns
+my-bank-statements-add-patterns --> spec
+
+
+```
+
+- releves : the pdf bank statement you get each month, with all your debits and credits
+- releves.yml : a yml file, that contains all the operations of all the releves
+- ventilation-specs.yml : a specification file on how to ventilate.
+- ventilation.yml and ventilation.md : the outputs of the ventilation
+
+
 ## CLI Tools
 
-### my-bnp-parser
+### my-bank-statements-parser
 
 Parses PDF bank statements and outputs YAML.
 
 ```bash
-my-bnp-parser <pdf_file_or_directory>
+my-bank-statements-parser <pdf_file_or_directory>
 ```
 
 - **Single file**: Parses the PDF and outputs `<filename>.yml`
@@ -35,27 +68,27 @@ my-bnp-parser <pdf_file_or_directory>
 #### Examples
 
 ```bash
-$ my-bnp-parser statement.pdf
+$ my-bank-statements-parser statement.pdf
 Parsed 42 operations (date: 2025-02-13) -> statement.yml
 
-$ my-bnp-parser pdfs/
+$ my-bank-statements-parser pdfs/
 Parsed 104 operations (date: 2024-01-13) from statement1.pdf
 Parsed 89 operations (date: 2024-02-13) from statement2.pdf
 Wrote 2 releves to pdfs/releves.yml
 ```
 
-### my-bnp-ventilate
+### my-bank-statements-ventilate
 
 Categorizes operations based on a ventilation spec and outputs results.
 
 ```bash
-my-bnp-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]
+my-bank-statements-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]
 ```
 
 #### Example
 
 ```bash
-$ my-bnp-ventilate pdfs/releves.yml ventilation_spec.yml
+$ my-bank-statements-ventilate pdfs/releves.yml ventilation_spec.yml
 Wrote ventilation to ventilation.yml
 Wrote ventilation.md
 ```
@@ -104,12 +137,12 @@ pie showData
     "Restaurants" : 265.51
 ```
 
-### my-bnp-add-patterns
+### my-bank-statements-add-patterns
 
 Interactive tool to help categorize unassigned operations by adding patterns to the ventilation spec.
 
 ```bash
-my-bnp-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]
+my-bank-statements-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]
 ```
 
 #### Features
@@ -130,7 +163,7 @@ my-bnp-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]
 #### Example
 
 ```bash
-$ my-bnp-add-patterns pdfs/releves.yml ventilation_spec.yml
+$ my-bank-statements-add-patterns pdfs/releves.yml ventilation_spec.yml
 Found 45 unassigned operations.
 Processing 32 unique operation descriptions...
 
@@ -187,7 +220,7 @@ The parser validates that `check_debit` equals `total_des_operations_debit` and 
 ## Library Usage
 
 ```rust
-use mybnp::{parse_pdf, SoldeType};
+use my_bank_statements::{parse_pdf, SoldeType};
 
 let releve = parse_pdf("statement.pdf")?;
 println!("Date: {}", releve.date_du_releve);

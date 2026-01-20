@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
-use mybnp::parser::model::{Operation, Releve, Solde, SoldeType};
-use mybnp::ventilation::model::{Assignment, VentilationSpec};
-use mybnp::ventilation::ventilate::{VentilateError, ventilate};
+use my_bank_statements::parser::model::{Operation, Releve, Solde, SoldeType};
+use my_bank_statements::ventilation::model::{Assignment, VentilationSpec};
+use my_bank_statements::ventilation::ventilate::{VentilateError, ventilate};
 
 #[test]
 fn test_ventilate() {
