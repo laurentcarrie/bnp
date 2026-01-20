@@ -1,4 +1,4 @@
-use mybnp::compute_year;
+use my_bank_statements::compute_year;
 
 #[test]
 fn test_same_month() {

@@ -1,6 +1,6 @@
-use mybnp::Releve;
-use mybnp::ventilation::model::{Assignment, VentilationSpec};
-use mybnp::ventilation::ventilate::ventilate;
+use my_bank_statements::Releve;
+use my_bank_statements::ventilation::model::{Assignment, VentilationSpec};
+use my_bank_statements::ventilation::ventilate::ventilate;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{self, Write};
@@ -373,7 +373,7 @@ fn main() {
         Some(p) => p,
         None => {
             eprintln!(
-                "Usage: my-bnp-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]"
+                "Usage: my-bank-statements-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]"
             );
             std::process::exit(1);
         }
@@ -383,7 +383,7 @@ fn main() {
         Some(p) => p,
         None => {
             eprintln!(
-                "Usage: my-bnp-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]"
+                "Usage: my-bank-statements-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]"
             );
             std::process::exit(1);
         }

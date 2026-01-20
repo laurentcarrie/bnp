@@ -391,7 +391,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mybnp"
+name = "my-bank-statements"
 version = "0.3.0"
 dependencies = [
  "chrono",

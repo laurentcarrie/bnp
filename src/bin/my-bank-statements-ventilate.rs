@@ -1,13 +1,13 @@
-use mybnp::Releve;
-use mybnp::ventilation::model::VentilationSpec;
-use mybnp::ventilation::ventilate::ventilate;
+use my_bank_statements::Releve;
+use my_bank_statements::ventilation::model::VentilationSpec;
+use my_bank_statements::ventilation::ventilate::ventilate;
 use std::fs;
 
 fn main() {
     let releves_path = match std::env::args().nth(1) {
         Some(p) => p,
         None => {
-            eprintln!("Usage: my-bnp-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]");
+            eprintln!("Usage: my-bank-statements-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]");
             std::process::exit(1);
         }
     };
@@ -15,7 +15,7 @@ fn main() {
     let spec_path = match std::env::args().nth(2) {
         Some(p) => p,
         None => {
-            eprintln!("Usage: my-bnp-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]");
+            eprintln!("Usage: my-bank-statements-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]");
             std::process::exit(1);
         }
     };

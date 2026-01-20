@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New CLI tool `my-bnp-add-patterns` to interactively categorize unassigned operations
+- New CLI tool `my-bank-statements-add-patterns` to interactively categorize unassigned operations
   - Keyword-based category suggestions (restaurants, supermarkets, transport, etc.)
   - Pattern extraction from operation descriptions
   - Auto-accept mode (`a` key) to accept all suggestions automatically
@@ -53,12 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract `date_du_releve` from statement header
 - Compute correct year for operations spanning year boundary
 - Use `chrono::NaiveDate` for date fields
-- CLI tool (`mybnp`) and library
+- CLI tool (`my-bank-statements`) and library
 - GitHub Actions CI workflow
 - GitHub Actions publish workflow for crates.io
 - Tests for year computation
 
-[0.3.0]: https://github.com/laurentcarrie/bnp/releases/tag/v0.3.0
-[0.2.0]: https://github.com/laurentcarrie/bnp/releases/tag/v0.2.0
-[0.1.1]: https://github.com/laurentcarrie/bnp/releases/tag/v0.1.1
-[0.1.0]: https://github.com/laurentcarrie/bnp/releases/tag/v0.1.0
+[0.3.0]: https://github.com/laurentcarrie/my-bank-statements/releases/tag/v0.3.0
+[0.2.0]: https://github.com/laurentcarrie/my-bank-statements/releases/tag/v0.2.0
+[0.1.1]: https://github.com/laurentcarrie/my-bank-statements/releases/tag/v0.1.1
+[0.1.0]: https://github.com/laurentcarrie/my-bank-statements/releases/tag/v0.1.0

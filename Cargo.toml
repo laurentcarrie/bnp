@@ -1,22 +1,22 @@
 [package]
-name = "mybnp"
+name = "my-bank-statements"
 version = "0.3.0"
 edition = "2024"
 description = "Parse BNP Paribas bank statements (PDF) and extract operations. Ventilate according to a description"
 license = "MIT"
-repository = "https://github.com/laurentcarrie/bnp"
+repository = "https://github.com/laurentcarrie/my-bank-statements"
 
 [[bin]]
-name = "my-bnp-parser"
-path = "src/bin/my-bnp-parser.rs"
+name = "my-bank-statements-parser"
+path = "src/bin/my-bank-statements-parser.rs"
 
 [[bin]]
-name = "my-bnp-ventilate"
-path = "src/bin/my-bnp-ventilate.rs"
+name = "my-bank-statements-ventilate"
+path = "src/bin/my-bank-statements-ventilate.rs"
 
 [[bin]]
-name = "my-bnp-add-patterns"
-path = "src/bin/my-bnp-add-patterns.rs"
+name = "my-bank-statements-add-patterns"
+path = "src/bin/my-bank-statements-add-patterns.rs"
 
 [dependencies]
 pdf-extract = "0.10"
