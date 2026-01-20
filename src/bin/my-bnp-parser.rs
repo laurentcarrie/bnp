@@ -6,21 +6,22 @@ fn main() {
     let path = match std::env::args().nth(1) {
         Some(p) => p,
         None => {
-            eprintln!("Usage: mybnp <pdf_file_or_directory>");
+            eprintln!("Usage: my-bnp-parser <pdf_file_or_directory> [output.yml]");
             std::process::exit(1);
         }
     };
 
+    let output_path = std::env::args().nth(2);
     let input_path = Path::new(&path);
 
     if input_path.is_dir() {
-        process_directory(input_path);
+        process_directory(input_path, output_path.as_deref());
     } else {
-        process_single_file(input_path);
+        process_single_file(input_path, output_path.as_deref());
     }
 }
 
-fn process_directory(dir: &Path) {
+fn process_directory(dir: &Path, output_path: Option<&str>) {
     let mut releves: Vec<Releve> = Vec::new();
 
     let entries = match fs::read_dir(dir) {
@@ -56,28 +57,29 @@ fn process_directory(dir: &Path) {
 
     releves.sort_by_key(|r| r.date_du_releve);
 
-    let output_path = dir.join("out.yml");
-    let yaml = serde_yaml::to_string(&releves).expect("Failed to serialize to YAML");
-    fs::write(&output_path, &yaml).expect("Failed to write YAML file");
+    let out = output_path
+        .map(|p| Path::new(p).to_path_buf())
+        .unwrap_or_else(|| dir.join("releves.yml"));
 
-    println!(
-        "Wrote {} releves to {}",
-        releves.len(),
-        output_path.display()
-    );
+    let yaml = serde_yaml::to_string(&releves).expect("Failed to serialize to YAML");
+    fs::write(&out, &yaml).expect("Failed to write YAML file");
+
+    println!("Wrote {} releves to {}", releves.len(), out.display());
 }
 
-fn process_single_file(input_path: &Path) {
+fn process_single_file(input_path: &Path, output_path: Option<&str>) {
     match parse_pdf(input_path.to_str().unwrap()) {
         Ok(releve) => {
-            let stem = input_path.file_stem().unwrap().to_str().unwrap();
-            let output_path = format!("{stem}.yml");
+            let out = output_path.map(|p| p.to_string()).unwrap_or_else(|| {
+                let stem = input_path.file_stem().unwrap().to_str().unwrap();
+                format!("{stem}.yml")
+            });
 
             let yaml = serde_yaml::to_string(&releve).expect("Failed to serialize to YAML");
-            fs::write(&output_path, &yaml).expect("Failed to write YAML file");
+            fs::write(&out, &yaml).expect("Failed to write YAML file");
 
             println!(
-                "Parsed {} operations (date: {}) -> {output_path}",
+                "Parsed {} operations (date: {}) -> {out}",
                 releve.operations.len(),
                 releve.date_du_releve,
             );

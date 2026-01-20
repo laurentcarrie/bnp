@@ -3,7 +3,7 @@
 [![CI](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml/badge.svg)](https://github.com/laurentcarrie/bnp/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/mybnp.svg)](https://crates.io/crates/mybnp)
 
-A Rust library and CLI tool to parse BNP Paribas bank statements (PDF) and extract operations to YAML.
+A Rust library and CLI tools to parse BNP Paribas bank statements (PDF) and categorize operations.
 
 ## Installation
 
@@ -19,55 +19,170 @@ From source:
 cargo install --path .
 ```
 
-## CLI Usage
+## CLI Tools
+
+### my-bnp-parser
+
+Parses PDF bank statements and outputs YAML.
 
 ```bash
-mybnp <pdf_file_or_directory>
+my-bnp-parser <pdf_file_or_directory>
 ```
 
 - **Single file**: Parses the PDF and outputs `<filename>.yml`
-- **Directory**: Parses all PDFs in the directory and outputs `out.yml` with all releves sorted by date
+- **Directory**: Parses all PDFs in the directory and outputs `releves.yml` with all releves sorted by date
 
-### Examples
+#### Examples
 
 ```bash
-$ mybnp statement.pdf
+$ my-bnp-parser statement.pdf
 Parsed 42 operations (date: 2025-02-13) -> statement.yml
 
-$ mybnp pdfs/
+$ my-bnp-parser pdfs/
 Parsed 104 operations (date: 2024-01-13) from statement1.pdf
 Parsed 89 operations (date: 2024-02-13) from statement2.pdf
-Wrote 2 releves to pdfs/out.yml
+Wrote 2 releves to pdfs/releves.yml
 ```
 
-### Output Format
+### my-bnp-ventilate
+
+Categorizes operations based on a ventilation spec and outputs results.
+
+```bash
+my-bnp-ventilate <releves.yml> <ventilation_spec.yml> [output.yml]
+```
+
+#### Example
+
+```bash
+$ my-bnp-ventilate pdfs/releves.yml ventilation_spec.yml
+Wrote ventilation to ventilation.yml
+Wrote ventilation.md
+```
+
+#### Ventilation Spec Format
+
+```yaml
+name: Budget Categories
+assignments:
+- name: Restaurants
+  patterns:
+  - RESTAURANT
+  - BRASSERIE
+  - CAFE
+- name: Transport
+  patterns:
+  - RATP
+  - SNCF
+  - UBER
+- name: Supermarches
+  patterns:
+  - CARREFOUR
+  - MONOPRIX
+  - FRANPRIX
+- name: Impots
+  ignore: true  # Excluded from pie chart
+  patterns:
+  - DGFIP IMPOT
+```
+
+The `ignore` field (default: `false`) allows you to exclude a category from the pie chart while still tracking it in the YAML output.
+
+#### Output
+
+The tool generates:
+- `ventilation.yml`: YAML with categorized amounts
+- `ventilation.md`: Markdown with a Mermaid pie chart (categories sorted by amount, descending)
+
+Example `ventilation.md`:
+
+```mermaid
+pie showData
+    "Non assigné" : 120198.13
+    "Supermarches" : 4154.12
+    "Transport" : 1434.21
+    "Restaurants" : 265.51
+```
+
+### my-bnp-add-patterns
+
+Interactive tool to help categorize unassigned operations by adding patterns to the ventilation spec.
+
+```bash
+my-bnp-add-patterns <releves.yml> <ventilation_spec.yml> [output.yml]
+```
+
+#### Features
+
+- **Keyword suggestions**: Automatically suggests categories based on common keywords (restaurants, supermarkets, transport, etc.)
+- **Pattern extraction**: Proposes clean patterns from operation descriptions
+- **Auto-accept mode**: Press `a` to automatically accept all suggestions
+
+#### Interactive Controls
+
+- **Enter**: Accept the suggested category and pattern
+- **0**: Skip this operation
+- **a**: Enable auto-accept mode for all remaining suggestions
+- **q**: Quit and save changes
+- **1-N**: Choose a specific category by number
+- **n**: Create a new category
+
+#### Example
+
+```bash
+$ my-bnp-add-patterns pdfs/releves.yml ventilation_spec.yml
+Found 45 unassigned operations.
+Processing 32 unique operation descriptions...
+
+----------------------------------------
+Operation: FACTURE(S) CARTE ... CARREFOUR MARKET
+Amount: -42.50 EUR
+Date: 2025-01-15
+
+>>> Suggested: Supermarches (pattern: CARREFOUR MARKET)
+
+Actions:
+  [Enter] Accept suggestion (if any)
+  0. Skip
+  a. Auto-accept all suggestions
+  q. Quit (save changes)
+  1. Restaurants
+  2. Supermarches
+  ...
+
+Choice:
+```
+
+## Output Format
+
+All monetary amounts are stored as integers representing centimes (1€ = 100).
 
 ```yaml
 - date_du_releve: 2025-02-13
   solde_ouverture:
     solde_type: Credit
-    montant: 1500.00
+    montant: 150000
   solde_cloture:
     solde_type: Credit
-    montant: 2000.00
-  total_des_operations_debit: 3500.00
-  total_des_operations_credit: 4000.00
-  check_debit: 3500.00
-  check_credit: 4000.00
+    montant: 200000
+  total_des_operations_debit: 350000
+  total_des_operations_credit: 400000
+  check_debit: 350000
+  check_credit: 400000
   operations:
   - date: 2025-01-16
     nature_des_operations: PRLV SEPA ...
     valeur: 2025-01-16
-    montant: 100.00
+    montant: 10000
     montant_type: Debit
   - date: 2025-01-29
     nature_des_operations: VIR SEPA RECU ...
     valeur: 2025-01-29
-    montant: 1000.00
+    montant: 100000
     montant_type: Credit
 ```
 
-The tool validates that `check_debit` equals `total_des_operations_debit` and `check_credit` equals `total_des_operations_credit`. If there's a mismatch, an error is reported.
+The parser validates that `check_debit` equals `total_des_operations_debit` and `check_credit` equals `total_des_operations_credit`. If there's a mismatch, an error is reported.
 
 ## Library Usage
 
@@ -81,7 +196,8 @@ for op in releve.operations {
         SoldeType::Credit => "+",
         SoldeType::Debit => "-",
     };
-    println!("{}: {}{}", op.date, sign, op.montant);
+    // montant is in centimes
+    println!("{}: {}{:.2}€", op.date, sign, op.montant as f64 / 100.0);
 }
 ```
 
