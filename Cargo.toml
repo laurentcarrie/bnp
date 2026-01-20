@@ -1,6 +1,6 @@
 [package]
 name = "my-bank-statements"
-version = "0.3.0"
+version = "0.0.1"
 edition = "2024"
 description = "Parse BNP Paribas bank statements (PDF) and extract operations. Ventilate according to a description"
 license = "MIT"

@@ -1,23 +1,56 @@
 # my-bank-statements
 
 [![CI](https://github.com/laurentcarrie/my-bank-statements/actions/workflows/ci.yml/badge.svg)](https://github.com/laurentcarrie/my-bank-statements/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/my-bank-statements.svg)](https://crates.io/crates/my-bank-statements)
 
-A Rust library and CLI tools to parse BNP Paribas bank statements (PDF) and categorize operations.
+A Rust library and CLI tools to parse bank statements (PDF) and categorize operations.
+
+Currently supports **BNP Paribas** statements.
 
 ## Installation
-
-From crates.io:
-
-```bash
-cargo install my-bank-statements
-```
 
 From source:
 
 ```bash
 cargo install --path .
 ```
+
+## Workflow 
+
+```mermaid
+
+flowchart TD
+
+pdfs@{ shape: procs, label: "Relevés mensuel BNP"}
+releves@{ label: "releves.yml"}
+spec@{ label: "ventilation-specs.yml" }
+my-bank-statements-parser@{ shape: braces, label: "my-bank-statements-parser" }
+my-bank-statements-ventilate@{ shape: braces, label: "my-bank-statements-ventilate" }
+my-bank-statements-add-patterns@{shape: braces,label:"my-bank-statements-add-patterns"}
+
+md@{ label: "ventilation.md" }
+ventyml@{ label: "ventilation.yml" }
+
+
+pdfs --> my-bank-statements-parser 
+my-bank-statements-parser --> releves
+
+releves --> my-bank-statements-ventilate 
+spec --> my-bank-statements-ventilate 
+my-bank-statements-ventilate --> md
+my-bank-statements-ventilate --> ventyml
+
+releves --> my-bank-statements-add-patterns
+spec --> my-bank-statements-add-patterns
+my-bank-statements-add-patterns --> spec
+
+
+```
+
+- releves : the pdf bank statement you get each month, with all your debits and credits
+- releves.yml : a yml file, that contains all the operations of all the releves
+- ventilation-specs.yml : a specification file on how to ventilate.
+- ventilation.yml and ventilation.md : the outputs of the ventilation
+
 
 ## CLI Tools
 
